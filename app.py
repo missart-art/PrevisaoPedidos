@@ -98,18 +98,21 @@ with tab1:
                 nome_semana = dias_semana_pt[data_obj.weekday()]
                 dados_dia = df_cache[df_cache['data'] == data_str]
                 
-                if not dados_dia.empty:
+                if data_obj < hoje:
+                    # TUDO QUE É PASSADO FICA ACINZENTADO, MESMO QUE TENHA DADO NO CACHE[cite: 5]
+                    label = f"Dia {day}\n{nome_semana}\n🔘"
+                    disabled = True 
+                elif not dados_dia.empty:
+                    # CORES ATIVAS APENAS DE HOJE EM DIANTE[cite: 5]
                     total = int(dados_dia.iloc[0]['total'])
                     cor = "🔴" if total > 100 else "🟡" if total > 50 else "🟢"
                     label = f"Dia {day}\n{nome_semana}\n{cor}"
                     disabled = False
-                elif data_obj < hoje:
-                    label = f"Dia {day}\n{nome_semana}\n🔘"
-                    disabled = True 
                 else:
+                    # FUTURO SEM PREVISÃO CALCULADA[cite: 5]
                     label = f"Dia {day}\n{nome_semana}\n⚪"
-                    disabled = False 
-
+                    disabled = False
+                    
                 with cols[i]:
                     if st.button(label, key=f"btn_{data_str}", use_container_width=True, disabled=disabled):
                         st.session_state['data_selecionada'] = data_str
