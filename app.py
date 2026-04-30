@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from database import setup_database
 from external import sync_external_data
 from engine import run_projection_30_days, get_ingredient_explosion, should_apply_mar_ruim, get_tag_percentage
-import calendar
 import management as mgt
 #from seguranca import interface_login
 
@@ -97,11 +96,6 @@ with tab1:
             st.rerun() # <--- ADICIONE ISSO
 
     # --- MONTAGEM DA GRADE REAL ---
-    dias_semana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
-    cols_header = st.columns(7)
-    for i, dia in enumerate(dias_semana):
-        cols_header[i].markdown(f"**{dia}**")
-
     hoje = datetime.date.today()
     dias_semana_pt = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado", "Domingo"]
         
