@@ -1,0 +1,6 @@
+pandas
+requests
+cloudscraper
+holidays
+beautifulsoup4
+cryptography
