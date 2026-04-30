@@ -59,7 +59,7 @@ with tab1:
         st.session_state.current_month = datetime.now().month
         st.session_state.current_year = datetime.now().year
 
-    col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+    col_nav1, col_nav2 = st.columns([1, 2])
     with col_nav1:
         if st.button("⬅️ Mês Anterior"):
             st.session_state.current_month -= 1
@@ -67,13 +67,6 @@ with tab1:
                 st.session_state.current_month = 12
                 st.session_state.current_year -= 1
             st.rerun()
-
-    with col_nav2:
-        meses_br = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-                    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-        st.markdown(f"<h2 style='text-align: center;'>{meses_br[st.session_state.current_month]} {st.session_state.current_year}</h2>", unsafe_allow_html=True)
-
-    with col_nav3:
         if st.button("Próximo Mês ➡️"):
             st.session_state.current_month += 1
             if st.session_state.current_month == 13:
@@ -81,11 +74,11 @@ with tab1:
                 st.session_state.current_year += 1
             st.rerun()
 
-    # --- GRADE DO CALENDÁRIO ---
-    hoje = date.today()
-    dias_semana_pt = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado", "Domingo"]
-    cal = calendar.Calendar(firstweekday=6)
-    month_days = cal.monthdayscalendar(st.session_state.current_year, st.session_state.current_month)
+    with col_nav2:
+        meses_br = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+        st.markdown(f"<h2 style='text-align: center;'>{meses_br[st.session_state.current_month]} {st.session_state.current_year}</h2>", unsafe_allow_html=True)
+
     
     for week in month_days:
         cols = st.columns(7)
