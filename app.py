@@ -7,12 +7,12 @@ from external import sync_external_data
 from engine import run_projection_30_days, get_ingredient_explosion, should_apply_mar_ruim, get_tag_percentage
 import calendar
 import management as mgt
-from seguranca import interface_login
+#from seguranca import interface_login
 
 # Configuração da Página
 st.set_page_config(page_title="Previsão de Demanda - Ilha", layout="wide")
 
-interface_login()
+#interface_login()
 
 st.sidebar.success("💻 Login Autorizado")
 
