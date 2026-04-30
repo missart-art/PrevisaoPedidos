@@ -115,74 +115,164 @@ with tab1:
                         st.session_state['data_selecionada'] = data_str
 
 # --- DETALHAMENTO DIÁRIO (ZOOM IN) ---
+   # --- DETALHAMENTO DIÁRIO (ZOOM IN) ---
 if 'data_selecionada' in st.session_state:
     st.divider()
     sel = st.session_state['data_selecionada']
-    conn = get_connection()
+    
+    # Busca dados completos do dia para os Toggles
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM Daily_Context WHERE data = ?", (sel,))
     ctx = cursor.fetchone()
 
     st.subheader(f"🔍 Painel de Controle: {datetime.strptime(sel, '%Y-%m-%d').strftime('%d/%m/%Y')}")
+    # --- LINHA 1: STATUS E PORCENTAGENS (INFO) ---
+    m1, m2, m3, m4 = st.columns(4)
     
-    # --- LINHA 1: INFORMAÇÕES ACUMULADAS ---
-    m1, m2, m3 = st.columns(3)
-    
+    ov_mar = st.session_state.get(f"mar_{sel}", "Automático")
+    ov_clima = st.session_state.get(f"clima_{sel}", "Automático")
+    ov_feriado = st.session_state.get(f"feriado_{sel}", "Automático")
+
     with m1:
-        # Exibição de Tags Ativas[cite: 5]
+        # 1. Pegamos todas as variáveis do contexto
+        is_holiday = ctx[9] if ctx else 0
+        is_weekend = ctx[8] if ctx else 0
+        is_bridge  = ctx[10] if ctx else 0
+        is_start   = ctx[11] if ctx else 0
+        is_end     = ctx[12] if ctx else 0
+
+        # 2. Criamos uma lista de todas as tags ativas no dia
         influencias = []
-        if ctx and ctx['is_holiday']: influencias.append(('Feriado', '🚩 Feriado'))
-        if ctx and ctx['is_weekend']: influencias.append(('Final_de_Semana', '📅 Fim de Semana'))
         
-        tags_html = "".join([f'<p style="margin:0;">{label} <span style="color:#09ab3b;">({get_tag_percentage(conn, tid)})</span></p>' for tid, label in influencias])
-        st.markdown(f'<div style="background:rgba(255,255,255,0.05);padding:10px;border-radius:5px;border-left:3px solid #ccc;">'
-                    f'<p style="color:#888;font-size:0.8rem;">Influências</p>{tags_html if tags_html else "Dia Comum"}</div>', unsafe_allow_html=True)
+        # Checagem de Feriado (Manual ou Automática)
+        if ov_feriado == "Sim": 
+            influencias.append(('Feriado', '🚩 Feriado (Manual)'))
+        elif is_holiday: 
+            influencias.append(('Feriado', '🚩 Feriado'))
+        
+        # Outras influências automáticas
+        if is_bridge: influencias.append(('Ponte', '🌉 Ponte'))
+        if is_start:  influencias.append(('Inicio_Mes', '💰 Início de Mês'))
+        if is_end:    influencias.append(('Fim_Mes', '📉 Fim de Mês'))
+        
+        # FDS só aparece se não for feriado (para não poluir)
+        if is_weekend and not is_holiday: 
+            influencias.append(('Final_de_Semana', '📅 Fim de Semana'))
+        
+        # Se não houver nada, é um dia comum
+        if not influencias:
+            influencias.append((None, 'Dia de Semana'))
+
+        # 3. Geramos o HTML para cada influência encontrada
+        tags_html = ""
+        for tag_id, label in influencias:
+            p = get_tag_percentage(conn, tag_id)
+            delta = ""
+            if p:
+                cor = "#09ab3b" if "+" in p else "#ff4b4b"
+                # Colocamos a porcentagem pequena ao lado do nome
+                delta = f' <span style="color: {cor}; font-size: 0.85rem; font-weight: normal;">({p})</span>'
+            
+            tags_html += f'<p style="margin: 0; font-size: 1.0rem; font-weight: 600; line-height: 1.4;">{label}{delta}</p>'
+
+        st.markdown(f"""
+            <div style="background-color: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 5px; border-left: 3px solid #ccc; min-height: 100px;">
+                <p style="margin: 0 0 5px 0; font-size: 0.8rem; color: #888;">Influências Acumuladas</p>
+                {tags_html}
+            </div>
+        """, unsafe_allow_html=True)
 
     with m2:
-        onda = ctx['onda_altura'] if ctx else 0
-        status_mar = "Bravo" if onda > 1.5 else "Bom"
-        st.markdown(f'<div style="background:rgba(255,255,255,0.05);padding:10px;border-radius:5px;border-left:3px solid #ccc;">'
-                    f'<p style="color:#888;font-size:0.8rem;">Condição do Mar</p><p style="font-size:1.1rem;font-weight:600;">{status_mar}</p></div>', unsafe_allow_html=True)
 
+        if ov_mar != "Automático":
+            mar_status = "Bravo (Manual)" if ov_mar == "Mar Ruim" else "Bom (Manual)"
+            impacto_mar = (ov_mar == "Mar Ruim")
+        else:
+            onda_h = ctx[1] if ctx else None
+            vento_v = ctx[3] if ctx else None
+            if onda_h is None: 
+                mar_status, impacto_mar = "Sem dados", False
+            else:
+                mar_status = "Bravo" if (onda_h * 10 + vento_v) > 35 else "Bom"
+                impacto_mar = should_apply_mar_ruim(conn, sel)
+
+        p_mar = get_tag_percentage(conn, 'Mar Ruim' if impacto_mar else None)
+        delta_mar = f'<span style="color: #ff4b4b; font-size: 0.9rem;">↓ {p_mar}</span>' if p_mar else ""
+
+        st.markdown(f'<div style="background-color: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 5px; border-left: 3px solid #ccc; min-height: 100px;">'
+                    f'<p style="margin: 0; font-size: 0.8rem; color: #888;">Condição do Mar</p>'
+                    f'<p style="margin: 0; font-size: 1.1rem; font-weight: 600;">{mar_status}</p>{delta_mar}</div>', unsafe_allow_html=True)
+
+    #with m3:
+
+     #   temp_val = ctx[5] if ctx else 'Sem Dados'
+
+      #  st.markdown(f'<div style="background-color: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 5px; border-left: 3px solid #ccc; min-height: 100px;">'
+       #             f'<p style="margin: 0; font-size: 0.8rem; color: #888;">Temperatura Máx</p>'
+        #            f'<p style="margin: 0; font-size: 1.1rem; font-weight: 600;">{temp_val}</p></div>', unsafe_allow_html=True)
+        
     with m3:
-        clima = ctx['condicao'] if ctx else "Sem Dados"
-        st.markdown(f'<div style="background:rgba(255,255,255,0.05);padding:10px;border-radius:5px;border-left:3px solid #ccc;">'
-                    f'<p style="color:#888;font-size:0.8rem;">Previsão Clima</p><p style="font-size:1.1rem;font-weight:600;">{clima}</p></div>', unsafe_allow_html=True)
 
-    # --- LINHA 2: INTERVENÇÃO MANUAL ---
-    st.write("---")
+        if ov_clima != "Automático":
+            clima_exibicao = f"{ov_clima} (Manual)"
+            tag_clima = 'Chuva_Forte' if ov_clima == "Chuva" else None
+        else:
+            clima_exibicao = ctx[6] if ctx and ctx[6] else "Sem dados"
+            prob_chuva = ctx[7] if ctx else None
+            tag_clima = 'Chuva_Forte' if (prob_chuva or 0) > 50 else ('Chuva_Leve' if (prob_chuva or 0) >= 20 else None)
+
+        p_chuva = get_tag_percentage(conn, tag_clima)
+        delta_clima = f'<span style="color: #ff4b4b; font-size: 0.9rem;">↓ {p_chuva}</span>' if p_chuva else ""
+
+        st.markdown(f'<div style="background-color: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 5px; border-left: 3px solid #ccc; min-height: 100px;">'
+                    f'<p style="margin: 0; font-size: 0.8rem; color: #888;">Clima</p>'
+                    f'<p style="margin: 0; font-size: 1.1rem; font-weight: 600;">{clima_exibicao}</p>{delta_clima}</div>', unsafe_allow_html=True)
+
+    # --- LINHA 2: TOGGLES DE INTERVENÇÃO (MUDANÇA EM TEMPO REAL) ---
     c1, c2, c3 = st.columns(3)
-    with c1:
-        novo_mar = st.radio("Override Mar:", ["Automático", "Mar Bom", "Mar Ruim"], horizontal=True, key=f"ov_mar_{sel}")
-    with c2:
-        novo_clima = st.radio("Override Clima:", ["Automático", "Sol", "Chuva"], horizontal=True, key=f"ov_cli_{sel}")
-    with c3:
-        novo_feriado = st.radio("Override Feriado:", ["Automático", "Sim", "Não"], horizontal=True, key=f"ov_fer_{sel}")
 
-    if st.button("✅ Aplicar Alterações e Recalcular"):
-        # Salva as preferências manuais no banco[cite: 7]
-        override = f"MAR:{novo_mar}|CLI:{novo_clima}|FER:{novo_feriado}"
-        cursor.execute("UPDATE Daily_Context SET manual_override = ? WHERE data = ?", (override, sel))
+    with c1:
+        # Toggle de Mar
+        novo_mar = st.radio("Alterar Mar:", ["Automático", "Mar Bom", "Mar Ruim"], 
+                            index=0, horizontal=True, key=f"mar_{sel}")
+    
+    
+    
+    if st.button("✅ Aplicar e Recalcular"):
+        # Lógica para salvar no banco (Manual Override)
+        # Vamos concatenar os overrides se houver mais de um, ou tratar no engine
+        override_list = []
+        if novo_mar != "Automático": override_list.append(novo_mar)
+        
+        # Salvamos o override principal (o motor atual lê apenas um, ideal expandir o motor depois)
+        final_override = override_list[0] if override_list else None
+        
+        cursor.execute("UPDATE Daily_Context SET manual_override = ? WHERE data = ?", (final_override, sel))
+        # Se for feriado manual, atualizamos a coluna is_holiday também para o motor ler
+            
         conn.commit()
         run_projection_30_days(conn)
-        st.success("Cálculos atualizados para este dia!")
+        st.success("Configurações aplicadas!")
         st.rerun()
-
-    # --- TABELAS DE DETALHE ---
+    # --- TABELAS DE EXPLOSÃO (PRATOS E INGREDIENTES) ---
     col_p, col_i = st.columns(2)
+    
     with col_p:
-        st.write("#### 🍽️ Pratos Previstos")
+        st.write("#### 🍽️ Pratos")
         df_pratos = pd.read_sql_query(f"SELECT m.nome_prato, f.quantidade_final_calculada as qtd FROM Forecast_Cache f JOIN Meals m ON f.meal_id = m.id WHERE f.data = '{sel}' ORDER BY qtd DESC", conn)
         st.dataframe(df_pratos, use_container_width=True)
 
     with col_i:
-        st.write("#### 🧪 Explosão de Ingredientes")
+        st.write("#### 🧪 Ingredientes")
         query_ing = f"SELECT i.nome_ingrediente, SUM(f.quantidade_final_calculada) as freq FROM Forecast_Cache f JOIN Meal_Ingredients mi ON f.meal_id = mi.meal_id JOIN Ingredients i ON mi.ingredient_id = i.id WHERE f.data = '{sel}' GROUP BY i.nome_ingrediente ORDER BY freq DESC"
         df_dia_ing = pd.read_sql_query(query_ing, conn)
         st.dataframe(df_dia_ing, use_container_width=True)
-
+            # Justificativa de Cálculo
+       
 with tab2:
+    # Apenas chama a função modularizada
     mgt.render_fechamento_e_auditoria(conn)
 
 with tab3:
+
     mgt.tela_adicionar_prato()
