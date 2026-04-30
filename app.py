@@ -112,7 +112,7 @@ with tab1:
     month_days = cal.monthdayscalendar(st.session_state.current_year, st.session_state.current_month)
     
     for week in month_days:
-    cols = st.columns(7)
+        cols = st.columns(7)
         for i, day in enumerate(week):
             if day == 0:
                 cols[i].write("") # Espaço vazio
