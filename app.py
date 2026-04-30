@@ -103,54 +103,54 @@ with tab1:
         cols_header[i].markdown(f"**{dia}**")
 
     hoje = datetime.date.today()
-dias_semana_pt = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado", "Domingo"]
-
-# 1. Removida a parte de cols_header (Dias da semana no topo)
-
-# Configura o calendário (começando no Domingo)
-cal = calendar.Calendar(firstweekday=6)
-month_days = cal.monthdayscalendar(st.session_state.current_year, st.session_state.current_month)
-
-for week in month_days:
+    dias_semana_pt = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado", "Domingo"]
+        
+    # 1. Removida a parte de cols_header (Dias da semana no topo)
+    
+    # Configura o calendário (começando no Domingo)
+    cal = calendar.Calendar(firstweekday=6)
+    month_days = cal.monthdayscalendar(st.session_state.current_year, st.session_state.current_month)
+    
+    for week in month_days:
     cols = st.columns(7)
-    for i, day in enumerate(week):
-        if day == 0:
-            cols[i].write("") # Espaço vazio
-        else:
-            # Monta o objeto de data para comparações
-            data_obj = datetime.date(st.session_state.current_year, st.session_state.current_month, day)
-            data_str = data_obj.strftime("%Y-%m-%d")
-            
-            # Descobre o nome do dia da semana (0=Segunda, 6=Domingo)
-            nome_semana = dias_semana_pt[data_obj.weekday()]
-            
-            # Busca dados no cache
-            dados_dia = df_cache[df_cache['data'] == data_str]
-            
-            # --- LÓGICA DE STATUS E CORES ---
-            if not dados_dia.empty:
-                # DIA COM PREVISÃO ATIVA
-                total = int(dados_dia.iloc[0]['total'])
-                cor = "🔴" if total > 100 else "🟡" if total > 50 else "🟢"
-                label = f"Dia {day}\n{nome_semana}\n{cor}"
-                disabled = False
-            elif data_obj < hoje:
-                # DIA PASSADO (ACINZENTADO)
-                # Usamos um emoji de círculo cinza/vazio para o "passado"
-                cor_faded = "🔘" 
-                label = f"Dia {day}\n{nome_semana}\n{cor_faded}"
-                disabled = True # Deixa o botão acinzentado nativamente
+        for i, day in enumerate(week):
+            if day == 0:
+                cols[i].write("") # Espaço vazio
             else:
-                # DIA FUTURO (FORA DO PRAZO)
-                cor_futuro = "⚪"
-                label = f"Dia {day}\n{nome_semana}\n{cor_futuro}"
-                disabled = False # Mantém clicável se quiser, ou True para travar
-
-            # --- RENDERIZAÇÃO DO BOTÃO ---
-            with cols[i]:
-                if st.button(label, key=f"btn_{data_str}", use_container_width=True, disabled=disabled):
-                    st.session_state['data_selecionada'] = data_str
-                    
+                # Monta o objeto de data para comparações
+                data_obj = datetime.date(st.session_state.current_year, st.session_state.current_month, day)
+                data_str = data_obj.strftime("%Y-%m-%d")
+                
+                # Descobre o nome do dia da semana (0=Segunda, 6=Domingo)
+                nome_semana = dias_semana_pt[data_obj.weekday()]
+                
+                # Busca dados no cache
+                dados_dia = df_cache[df_cache['data'] == data_str]
+                
+                # --- LÓGICA DE STATUS E CORES ---
+                if not dados_dia.empty:
+                    # DIA COM PREVISÃO ATIVA
+                    total = int(dados_dia.iloc[0]['total'])
+                    cor = "🔴" if total > 100 else "🟡" if total > 50 else "🟢"
+                    label = f"Dia {day}\n{nome_semana}\n{cor}"
+                    disabled = False
+                elif data_obj < hoje:
+                    # DIA PASSADO (ACINZENTADO)
+                    # Usamos um emoji de círculo cinza/vazio para o "passado"
+                    cor_faded = "🔘" 
+                    label = f"Dia {day}\n{nome_semana}\n{cor_faded}"
+                    disabled = True # Deixa o botão acinzentado nativamente
+                else:
+                    # DIA FUTURO (FORA DO PRAZO)
+                    cor_futuro = "⚪"
+                    label = f"Dia {day}\n{nome_semana}\n{cor_futuro}"
+                    disabled = False # Mantém clicável se quiser, ou True para travar
+        
+                # --- RENDERIZAÇÃO DO BOTÃO ---
+                with cols[i]:
+                    if st.button(label, key=f"btn_{data_str}", use_container_width=True, disabled=disabled):
+                        st.session_state['data_selecionada'] = data_str
+                        
     # --- DETALHAMENTO DIÁRIO (ZOOM IN) ---
 if 'data_selecionada' in st.session_state:
     st.divider()
